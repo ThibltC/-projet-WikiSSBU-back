@@ -26,7 +26,7 @@ const upload = multer({
     }
 });
 
-router.post('/uploaddufichier', upload.array('monfichier', 2), (req, res, next) => {
+router.post('/upload', upload.array('monfichier', 2), (req, res, next) => {
     res.send('Fichier uploadé avec succès');
 })
 
