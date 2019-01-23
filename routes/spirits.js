@@ -5,7 +5,7 @@ const multer = require('multer');
 
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, 'public/images')
+        cb(null, 'public/images/spirits')
     },
     filename: (req, file, cb) => {
         cb(null, `${file.fieldname}-${Date.now()}.png`)
@@ -16,30 +16,69 @@ const upload = multer({
     dest: 'tmp/',
     storage,
     limits: {
-        fileSize: 3 * 1024 * 1024
+        fileSize: 3 * 1024 * 1024 * 1024
     },
     fileFilter: (req, file, cb) => {
-        if (!file.mimetype.includes('image/jpg')) {
-            cb(new Error('Pas jpg'))
+        const verifyMimetype = ['image/jpg', 'image/jpeg', 'image/png']
+        if (!verifyMimetype.includes(file.mimetype)) {
+            cb(new Error('MAUVAIS FORMAT. Formats acceptés : jpeg,jpg,png'))
         }
-        cb(null, true); // tout est ok, tu continues
+        cb(null, true);
     }
 });
 
-router.post('/upload', upload.array('monfichier', 2), (req, res, next) => {
-    res.send('Fichier uploadé avec succès');
-})
 
-router.post('/', (req, res) => {
-    connection.query(`INSERT INTO esprits SET ?;`, req.body, (err, results) => {
-        if (err) {
-            res.status(500).send("Erreur lors de la sauvegarde d'un esprit");
-        } else {
-            res.status(200).json({
-                id: results.insertId,
-            });
+router.route('/')
+    .post(upload.single('picture_spirit'), (req, res) => {
+        const sql = `INSERT INTO spirits SET ?`
+        const { id, name, id_series, type } = req.body
+        const formData = {
+            id,
+            name,
+            type,
+            path_image: req.file ? req.file.path : "path",
+            id_series
         }
-    });
-});
+        connection.query(sql, formData, (err, results) => {
+            if (err) {
+                res.status(500).send(err);
+            } else {
+                res.status(200).send('Insertion réussie')
+            }
+        });
+    })
+    .get((req, res) => {
+        const sql = 'SELECT path_image FROM spirits'
+        connection.query(sql, (err, results) => {
+            if (err) {
+                res.status(500).send(err);
+            } else {
+                res.status(200).send(results)
+            }
+        })
+    })
+
+router.route('/:spirit_name')
+    .put((req, res) => {
+        const sql = 'UPDATE name SET ? WHERE name = ?'
+        formData = [req.body, req.params.spirit_name]
+        connection.query(sql, formData, (err, results) => {
+            if (err) {
+                res.status(500).send(err);
+            } else {
+                res.status(200).send(results)
+            }
+        })
+    })
+    .delete((req, res) => {
+        const sql = 'DELETE FROM spirits WHERE name = ?'
+        connection.query(sql, req.params.spirit_name, (err, results) => {
+            if (err) {
+                res.status(500).send(`Erreur lors de la suppression de la série`);
+            } else {
+                res.sendStatus(200);
+            }
+        })
+    })
 
 module.exports = router
