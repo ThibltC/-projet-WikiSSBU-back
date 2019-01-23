@@ -31,13 +31,14 @@ const upload = multer({
 router.route('/')
     .post(upload.single('picture_spirit'), (req, res) => {
         const sql = `INSERT INTO spirits SET ?`
-        const { id, name, id_series, type } = req.body
+        const { id, name, id_series, type, rank } = req.body
         const formData = {
             id,
             name,
             type,
             path_image: req.file ? req.file.path : "path",
-            id_series
+            id_series,
+            rank
         }
         connection.query(sql, formData, (err, results) => {
             if (err) {
@@ -47,38 +48,89 @@ router.route('/')
             }
         });
     })
-    .get((req, res) => {
-        const sql = 'SELECT path_image FROM spirits'
-        connection.query(sql, (err, results) => {
-            if (err) {
-                res.status(500).send(err);
-            } else {
-                res.status(200).send(results)
-            }
-        })
+router.get('/random', (req, res) => {
+    const sql =
+        `SELECT
+            path_image, 
+            sp.name, 
+            rank, 
+            se.name AS name_serie, 
+            sp.id 
+         FROM 
+            spirits AS sp, 
+            series AS se 
+         WHERE se.id = id_series
+         ORDER BY RAND()
+         LIMIT 3`
+    connection.query(sql, (err, results) => {
+        if (err) {
+            res.status(500).send(err);
+        } else {
+            res.status(200).send(results)
+        }
     })
+})
 
-router.route('/:spirit_name')
-    .put((req, res) => {
-        const sql = 'UPDATE name SET ? WHERE name = ?'
-        formData = [req.body, req.params.spirit_name]
-        connection.query(sql, formData, (err, results) => {
-            if (err) {
-                res.status(500).send(err);
-            } else {
-                res.status(200).send(results)
-            }
-        })
+router.get('/search', (req, res) => {
+    const { name, serie, type, rank, skill } = req.query;
+    console.log('NAME', name)
+    console.log('SKILL', skill)
+    nameEsc = connection.escape(`%${name}%`);
+    typeEsc = connection.escape(type);
+    serieEsc = connection.escape(serie);
+    rankEsc = connection.escape(rank)
+    skillEsc = connection.escape(skill);
+    const sql =
+        `SELECT
+            path_image, 
+            sp.name, 
+            rank, 
+            type,
+            se.name AS name_serie, 
+            sp.id,
+            sk.category AS skill_category,
+            sk.text AS skill_text           
+         FROM 
+            spirits AS sp, 
+            series AS se,
+            skills AS sk 
+         WHERE se.id = id_series AND sk.id = id_skills
+         ${name ? "AND sp.name LIKE" + nameEsc : ""}
+         ${serie ? "AND se.name=" + serieEsc : ""}
+         ${type ? "AND type=" + typeEsc : ""}
+         ${rank ? "AND rank=" + rankEsc : ""}
+         ${skill ? "AND sk.category=" + skillEsc : ""};`
+         console.log(sql,'000000000000000000000000000000000000000')
+    connection.query(sql, (err, results) => {
+        if (err) {
+            res.status(500).send(err);
+        } else {
+            res.status(200).send(results)
+        }
     })
-    .delete((req, res) => {
-        const sql = 'DELETE FROM spirits WHERE name = ?'
-        connection.query(sql, req.params.spirit_name, (err, results) => {
-            if (err) {
-                res.status(500).send(`Erreur lors de la suppression de la série`);
-            } else {
-                res.sendStatus(200);
-            }
-        })
-    })
+})
+
+// router.route('/:spirit_id')
+//     .put((req, res) => {
+//         const sql = 'UPDATE spirits SET ? WHERE id = ?'
+//         formData = [req.body, req.params.spirit_id]
+//         connection.query(sql, formData, (err, results) => {
+//             if (err) {
+//                 res.status(500).send(err);
+//             } else {
+//                 res.status(200).send(results)
+//             }
+//         })
+//     })
+//     .delete((req, res) => {
+//         const sql = 'DELETE FROM spirits WHERE id = ?'
+//         connection.query(sql, req.params.spirit_id, (err, results) => {
+//             if (err) {
+//                 res.status(500).send(`Erreur lors de la suppression de la série`);
+//             } else {
+//                 res.sendStatus(200);
+//             }
+//         })
+//     })
 
 module.exports = router
